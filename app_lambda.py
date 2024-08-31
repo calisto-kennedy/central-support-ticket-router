@@ -1,12 +1,12 @@
 import os
-from dotenv import load_dotenv
+import json
 import requests
 from requests.auth import HTTPBasicAuth
 import openai
 from bs4 import BeautifulSoup
-import json
 
 # Load environment variables from .env file
+from dotenv import load_dotenv
 load_dotenv()
 
 # Retrieve environment variables
@@ -38,6 +38,18 @@ def get_requester_details(requester_id):
     
     return response.json()['user']['name']
 
+# Function to fetch group details using group_id
+def get_group_details(group_id):
+    url = f'https://central-supportdesk.zendesk.com/api/v2/groups/{group_id}.json'
+    auth = HTTPBasicAuth(email, password)
+    headers = {'Content-Type': 'application/json'}
+    response = requests.get(url, headers=headers, auth=auth)
+    
+    if response.status_code != 200:
+        raise Exception(f"Error fetching group details: {response.status_code} {response.text}")
+    
+    return response.json()['group']['name']
+
 # Function to extract relevant details from the ticket
 def extract_ticket_info(ticket_details):
     issue_type = None
@@ -46,6 +58,7 @@ def extract_ticket_info(ticket_details):
     subject = ticket_details['ticket'].get('subject', '')
     description = ticket_details['ticket'].get('description', '')
     requester_id = ticket_details['ticket'].get('requester_id', '')
+    group_id = ticket_details['ticket'].get('group_id', '')
 
     # Iterate through custom fields to find 'issue_type' or similar fields
     for field in custom_fields:
@@ -58,22 +71,24 @@ def extract_ticket_info(ticket_details):
         "description": description,
         "tags": tags,
         "issue_type": issue_type,
-        "requester_id": requester_id
+        "requester_id": requester_id,
+        "group_id": group_id
     }
 
-# Function to formulate the prompt for OpenAI, now including routing and scope information
-def formulate_prompt(ticket_info, routing_info, requester_name):
+# Function to formulate the prompt for OpenAI, now including routing, scope, and group information
+def formulate_prompt(ticket_info, routing_info, requester_name, group_name):
     issue_type = ticket_info['issue_type'] if ticket_info['issue_type'] else "Unknown"
     tags = ', '.join(ticket_info['tags'])
     routing_info_str = "\n".join([f"{key}: {value}" for key, value in routing_info.items()])
     
-    # Including scope responsibility and requester's name in the prompt
+    # Including scope responsibility, group, and requester's name in the prompt
     prompt = (
         f"Requester: {requester_name}\n"
         f"Ticket Subject: {ticket_info['subject']}\n"
         f"Ticket Description: {ticket_info['description']}\n"
         f"Issue Type: {issue_type}\n"
-        f"Tags: {tags}\n\n"
+        f"Tags: {tags}\n"
+        f"Current Group: {group_name}\n\n"
         f"The following is the routing information which includes scope responsibility (e.g., L1, L2, BU, PS, Finance, Engineering, Collections):\n{routing_info_str}\n\n"
         "Based on the information above, who should handle this ticket? "
         "If escalation is required, to whom should it be escalated?"
@@ -119,13 +134,17 @@ def determine_relevant_article(ticket_details):
             'subdomain': 'support.fogbugz.com',
             'article_id': '360013086800'
         },
-        '10791313891474': {   # Kandy (we still need to identify whether the request is related to UCaaS or CPaaS per https://supportportal.kandy.io/hc/en-us/articles/12006319358482-Initial-Kandy-Ticket-Triage)
+        '10791313891474': {   # Kandy
             'subdomain': 'supportportal.kandy.io',
             'article_id': '11713628235922'
         },
         '10855255360274': {   # Skyvera Monetization and CxM
             'subdomain': 'skyvera-monetization.zendesk.com',
             'article_id': '16268337936914'
+        },
+        '17348612826386': {   # PeerApp
+            'subdomain': 'support.skyvera.com',
+            'article_id': '360013199420'
         },
         # Additional mappings as needed
     }
@@ -173,7 +192,6 @@ def parse_routing_information(article_body):
     lines = text.splitlines()
     for line in lines:
         if any(keyword in line.lower() for keyword in ["route", "escalate", "team", "scope", "responsibility"]):
-            # Simple heuristic: consider this line as relevant
             parts = line.split(":")
             if len(parts) == 2:
                 routing_info[parts[0].strip()] = parts[1].strip()
@@ -197,6 +215,9 @@ def process_ticket(ticket_id):
         # Fetch requester's full name
         requester_name = get_requester_details(ticket_info['requester_id'])
         
+        # Fetch group's full name
+        group_name = get_group_details(ticket_info['group_id'])
+        
         # Determine the relevant article based on the ticket_form_id
         relevant_article = determine_relevant_article(ticket_details)
         if not relevant_article:
@@ -210,13 +231,14 @@ def process_ticket(ticket_id):
         routing_info = parse_routing_information(article_body)
         
         # Formulate the prompt for OpenAI, including routing information and requester's name
-        prompt = formulate_prompt(ticket_info, routing_info, requester_name)
+        prompt = formulate_prompt(ticket_info, routing_info, requester_name, group_name)
         
         # Query OpenAI with the ticket and routing information
         response = query_openai(prompt, openai_api_key)
         
-        # Return the decision
+        # Return the decision including the Current Handling Group
         return response
+        print(f"Current Handling Group: {group_name}")
     
     except Exception as e:
         print(f"Error processing ticket {ticket_id}: {str(e)}")

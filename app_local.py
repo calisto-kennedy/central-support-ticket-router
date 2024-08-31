@@ -142,6 +142,10 @@ def determine_relevant_article(ticket_details):
             'subdomain': 'skyvera-monetization.zendesk.com',
             'article_id': '16268337936914'
         },
+        '17348612826386': {   # PeerApp
+            'subdomain': 'support.skyvera.com',
+            'article_id': '360013199420'
+        },
         # Additional mappings as needed
     }
 
@@ -243,5 +247,5 @@ def process_ticket(ticket_id):
 
 # Example execution
 if __name__ == "__main__":
-    ticket_id = '3921297'  # Example ticket ID
+    ticket_id = '4458072'  # Example ticket ID
     process_ticket(ticket_id)
