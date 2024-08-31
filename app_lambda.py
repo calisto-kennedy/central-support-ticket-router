@@ -119,6 +119,14 @@ def determine_relevant_article(ticket_details):
             'subdomain': 'support.fogbugz.com',
             'article_id': '360013086800'
         },
+        '10791313891474': {   # Kandy (we still need to identify whether the request is related to UCaaS or CPaaS per https://supportportal.kandy.io/hc/en-us/articles/12006319358482-Initial-Kandy-Ticket-Triage)
+            'subdomain': 'supportportal.kandy.io',
+            'article_id': '11713628235922'
+        },
+        '10855255360274': {   # Skyvera Monetization and CxM
+            'subdomain': 'skyvera-monetization.zendesk.com',
+            'article_id': '16268337936914'
+        },
         # Additional mappings as needed
     }
 
