@@ -146,6 +146,10 @@ def determine_relevant_article(ticket_details):
             'subdomain': 'support.skyvera.com',
             'article_id': '360013199420'
         },
+        '20034682106002': {   # DXI
+            'subdomain': 'discoverxi-supportdesk.zendesk.com',
+            'article_id': '20304714254610'
+        },
         # Additional mappings as needed
     }
 
