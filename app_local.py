@@ -146,6 +146,10 @@ def determine_relevant_article(ticket_details):
             'subdomain': 'support.skyvera.com',
             'article_id': '360013199420'
         },
+        '20034682106002': {   # DXI
+            'subdomain': 'discoverxi-supportdesk.zendesk.com',
+            'article_id': '20304714254610'
+        },
         # Additional mappings as needed
     }
 
@@ -247,5 +251,5 @@ def process_ticket(ticket_id):
 
 # Example execution
 if __name__ == "__main__":
-    ticket_id = '4458072'  # Example ticket ID
+    ticket_id = '4468944'  # Example ticket ID
     process_ticket(ticket_id)
